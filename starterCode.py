@@ -16,7 +16,7 @@ import requests
 # -----------------------------
 url = "http://hadi.cs.virginia.edu:8000/download/train-dataset"
 zip_path = "train_dataset.zip"
-extract_dir = "train_dataset"
+extract_dir = "dataset"
 
 # -----------------------------
 # 1. Download the zip file if it doesn't exist
@@ -61,9 +61,19 @@ else:
     print(f"{extract_dir} already exists, skipping extraction.")
 
 # -----------------------------
-# 3. Define transforms
+# 3. Define transforms - Separate for train vs validation/test
 # -----------------------------
-transform = transforms.Compose([
+# Training transforms with augmentation
+train_transform = transforms.Compose([
+    transforms.Resize((120, 120)),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.ToTensor()
+])
+
+# Validation/test transforms without augmentation
+eval_transform = transforms.Compose([
     transforms.Resize((120, 120)),
     transforms.ToTensor()
 ])
@@ -119,35 +129,41 @@ class SkinDataset(Dataset):
 # 5. Create Dataset and DataLoader
 # -----------------------------
 
-# Create dataset and dataloader
-dataset = SkinDataset(root_dir="train_dataset/train_dataset", transform=transform)
+# Create datasets with appropriate transforms
+train_dataset_full = SkinDataset(root_dir="dataset/train_dataset", transform=train_transform)
+eval_dataset_full = SkinDataset(root_dir="dataset/train_dataset", transform=eval_transform)
 
-# Suppose dataset is your full dataset
-dataset_size = len(dataset)
+# Get dataset size and create indices
+dataset_size = len(train_dataset_full)
 indices = torch.randperm(dataset_size)  # shuffle indices
 
-train_size = int(0.9 * dataset_size)
-test_size = dataset_size - train_size
+train_size = int(0.7 * dataset_size)   # 70% training
+val_size = int(0.15 * dataset_size)    # 15% validation
+test_size = dataset_size - train_size - val_size  # 15% test
 
 train_indices = indices[:train_size]
-test_indices = indices[train_size:]
+val_indices = indices[train_size:train_size + val_size]
+test_indices = indices[train_size + val_size:]
 
-# Create subsets
-train_dataset = Subset(dataset, train_indices)
-test_dataset = Subset(dataset, test_indices)
+# Create three subsets with appropriate transforms
+train_dataset = Subset(train_dataset_full, train_indices)
+val_dataset = Subset(eval_dataset_full, val_indices)
+test_dataset = Subset(eval_dataset_full, test_indices)
 
 # Create DataLoaders
 dataloader_train = DataLoader(train_dataset, batch_size=512, shuffle=True)
-dataloader_test = DataLoader(test_dataset, batch_size=512, shuffle=True)
+dataloader_val = DataLoader(val_dataset, batch_size=512, shuffle=False)
+dataloader_test = DataLoader(test_dataset, batch_size=512, shuffle=False)
 
 print(f"train_dataset size: {len(train_dataset)}")
+print(f"val_dataset size: {len(val_dataset)}")
 print(f"test_dataset size: {len(test_dataset)}")
 
 
 import matplotlib.pyplot as plt
 
-# Get a batch of test images
-dataiter = iter(dataloader_test)
+# Get a batch of validation images for plotting
+dataiter = iter(dataloader_val)
 images, labels = next(dataiter)
 
 images = images[-2:]
@@ -162,7 +178,7 @@ fig, axes = plt.subplots(1, 2, figsize=(4, 2))
 for i in range(2):
     img = images[i].permute(1, 2, 0).numpy()  # convert from (C,H,W) to (H,W,C)
     axes[i].imshow(img)
-    axes[i].set_title(f"{dataset.classes[labels[i]]}", fontsize=10)
+    axes[i].set_title(f"{eval_dataset_full.classes[labels[i]]}", fontsize=10)
     axes[i].axis("off")
 
 plt.show()
@@ -180,7 +196,7 @@ from collections import Counter
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 # Match number of output classes
-num_classes = len(dataset.classes)
+num_classes = len(train_dataset_full.classes)
 print(f"Detected {num_classes} classes")
 # -----------------------------
 
@@ -241,27 +257,54 @@ for epoch in range(num_epochs):
           f"Train Accuracy: {train_acc:.4f}, Train F1: {train_f1:.4f}")
 
     # -----------------------------
-    # Evaluation on test set
+    # Evaluation on validation set
     # -----------------------------
     model.eval()
-    test_preds = []
-    test_labels = []
+    val_preds = []
+    val_labels = []
     with torch.no_grad():
-        for images, labels in dataloader_test:
+        for images, labels in dataloader_val:
             images = images.to(device)
             labels = labels.to(device, dtype=torch.long)
 
             outputs = model(images)
             preds = torch.argmax(outputs, dim=1)
 
-            test_preds.append(preds.cpu())
-            test_labels.append(labels.cpu())
+            val_preds.append(preds.cpu())
+            val_labels.append(labels.cpu())
 
-    test_preds = torch.cat(test_preds)
-    test_labels = torch.cat(test_labels)
-    test_acc = accuracy_score(test_labels.numpy(), test_preds.numpy())
-    test_f1 = f1_score(test_labels.numpy(), test_preds.numpy(), average='macro')
-    print(f"Epoch {epoch+1}/{num_epochs}, Test Accuracy: {test_acc:.4f}, Test F1: {test_f1:.4f}")
+    val_preds = torch.cat(val_preds)
+    val_labels = torch.cat(val_labels)
+    val_acc = accuracy_score(val_labels.numpy(), val_preds.numpy())
+    val_f1 = f1_score(val_labels.numpy(), val_preds.numpy(), average='macro')
+    print(f"Epoch {epoch+1}/{num_epochs}, Val Accuracy: {val_acc:.4f}, Val F1: {val_f1:.4f}")
+
+# -----------------------------
+# Final evaluation on test set
+# -----------------------------
+print("\n" + "="*50)
+print("FINAL TEST SET EVALUATION")
+print("="*50)
+model.eval()
+test_preds = []
+test_labels = []
+with torch.no_grad():
+    for images, labels in dataloader_test:
+        images = images.to(device)
+        labels = labels.to(device, dtype=torch.long)
+
+        outputs = model(images)
+        preds = torch.argmax(outputs, dim=1)
+
+        test_preds.append(preds.cpu())
+        test_labels.append(labels.cpu())
+
+test_preds = torch.cat(test_preds)
+test_labels = torch.cat(test_labels)
+test_acc = accuracy_score(test_labels.numpy(), test_preds.numpy())
+test_f1 = f1_score(test_labels.numpy(), test_preds.numpy(), average='macro')
+print(f"Final Test Accuracy: {test_acc:.4f}")
+print(f"Final Test F1: {test_f1:.4f}")
 
 
 # -----------------------------
