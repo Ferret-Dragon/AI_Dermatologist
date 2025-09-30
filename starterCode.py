@@ -329,10 +329,10 @@ print(f"Final Test F1: {test_f1:.4f}")
 
 
 # -----------------------------
-# Save Model
+# Save Model - Change this to submit
 # -----------------------------
 model.eval()
-save_name = "LinearModel.pth"
+save_name = "model.pth"
 
 # Script and save the model
 scripted_model = torch.jit.script(model)
