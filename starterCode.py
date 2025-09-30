@@ -297,7 +297,7 @@ def submit_model(token: str, model_path: str, server_url="http://hadi.cs.virgini
 
 
 # Replace with your team token
-my_token = "Your_token_here"
+my_token = "8d4b5e52f3fec63496a977d9d8bf7522"
 file_name = "model.pth"
 submit_model(my_token, file_name)
 
