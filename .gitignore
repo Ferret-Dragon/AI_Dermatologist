@@ -5,6 +5,9 @@ dataset/
 # Model files
 *.pth
 
+# Test files
+quick_test.py
+
 # Python cache
 __pycache__/
 *.pyc
