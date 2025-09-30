@@ -202,18 +202,39 @@ print(f"Detected {num_classes} classes")
 
 
 # -----------------------------
-# 6. Build model
+# 6. Build model; initially uses Linear, now CNN
 # -----------------------------
-class LinearModel(nn.Module):
+class CNNModel(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.fc = nn.Linear(3 * 120 * 120, num_classes)
+        # First convolutional layer: 3 input channels (RGB) -> 16 output channels
+        # Kernel size 3x3, padding=1 keeps image size the same (120x120)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        
+        # Second layer; 16 input channels, 32 output channels
+        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(32 * 30 * 30, 128)  # 120/2/2 = 30
+        # Output layer: 128 neurons (number of classes)
+        self.fc2 = nn.Linear(128, num_classes)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, x):
-        x = x.view(x.size(0), -1)   # flatten image
-        return self.fc(x)
+          x = self.pool(torch.relu(self.conv1(x)))  # 120->60
+          x = self.pool(torch.relu(self.conv2(x)))  # 60->30
+          
+          # Flatten image
+          # Reshape batch size
+          x = x.view(x.size(0), -1)  # flatten
+          x = torch.relu(self.fc1(x))
+          
+          # Dropout during training
+          x = self.dropout(x)
+          
+          # Output is batch size x num_classes
+          return self.fc2(x)
 
-model = LinearModel(num_classes).to(device)
+model = CNNModel(num_classes).to(device)
 # -----------------------------
 # Loss and Optimizer
 # -----------------------------
