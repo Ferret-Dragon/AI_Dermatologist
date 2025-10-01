@@ -1,0 +1,28 @@
+Model Architecture Changes:
+  1. Reduce channels: Change Conv2d(3, 16, ...) → Conv2d(3, 8, 
+  ...) and Conv2d(16, 32, ...) → Conv2d(8, 16, ...) (lines 212,
+  215)
+  2. Reduce FC layer size: Change Linear(32 * 30 * 30, 128) →
+  Linear(16 * 30 * 30, 64) and Linear(128, num_classes) →
+  Linear(64, num_classes) (lines 217, 219)
+  3. Remove one conv layer: Use only one convolutional layer
+  instead of two
+  4. Use smaller kernel sizes: Change kernel_size=3 to
+  kernel_size=2 if you keep both layers
+
+  Training Optimizations:
+  5. Reduce input size: Change Resize((120, 120)) → Resize((60, 
+  60)) or (80, 80) (lines 68, 77)
+  6. Use weight pruning: Add pruning after training to zero out
+  small weights
+  7. Use quantization: Convert to torch.quantization for INT8
+  weights
+
+  Quick wins - change lines 212, 215, 217, 219:
+  self.conv1 = nn.Conv2d(3, 8, kernel_size=3, padding=1)
+  self.conv2 = nn.Conv2d(8, 16, 3, padding=1)
+  self.fc1 = nn.Linear(16 * 30 * 30, 64)
+  self.fc2 = nn.Linear(64, num_classes)
+
+  This should reduce your model from ~13KB to under 5KB with
+  minimal accuracy loss.

@@ -65,7 +65,7 @@ else:
 # -----------------------------
 # Training transforms with augmentation
 train_transform = transforms.Compose([
-    transforms.Resize((120, 120)),
+    transforms.Resize((80, 80)),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomRotation(10),
     transforms.ColorJitter(brightness=0.2, contrast=0.2),
@@ -74,7 +74,7 @@ train_transform = transforms.Compose([
 
 # Validation/test transforms without augmentation
 eval_transform = transforms.Compose([
-    transforms.Resize((120, 120)),
+    transforms.Resize((80, 80)),
     transforms.ToTensor()
 ])
 
@@ -207,16 +207,16 @@ print(f"Detected {num_classes} classes")
 class CNNModel(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        # First convolutional layer: 3 input channels (RGB) -> 16 output channels
+        # First convolutional layer: 3 input channels (RGB) -> 8 output channels
         # Kernel size 3x3, padding=1 keeps image size the same (120x120)
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(3, 8, kernel_size=3, padding=1)
         
-        # Second layer; 16 input channels, 32 output channels
-        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
+        # Second layer; 8 input channels, 16 output channels
+        self.conv2 = nn.Conv2d(8, 16, 3, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(32 * 30 * 30, 128)  # 120/2/2 = 30
+        self.fc1 = nn.Linear(16 * 30 * 30, 64)  # 120/2/2 = 30
         # Output layer: 128 neurons (number of classes)
-        self.fc2 = nn.Linear(128, num_classes)
+        self.fc2 = nn.Linear(64, num_classes)
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, x):
