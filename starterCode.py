@@ -11,9 +11,34 @@ import torch
 from torch.utils.data import DataLoader, Subset
 import requests
 
-# -----------------------------
+# =============================
+# HYPERPARAMETERS & CONFIG
+# =============================
+# Model architecture
+IMAGE_SIZE = 80
+CONV1_CHANNELS = 8
+CONV2_CHANNELS = 16
+FC1_SIZE = 64
+DROPOUT_RATE = 0.5
+
+# Data augmentation
+RANDOM_FLIP_PROB = 0.5
+RANDOM_ROTATION_DEGREES = 10
+COLOR_JITTER_BRIGHTNESS = 0.2
+COLOR_JITTER_CONTRAST = 0.2
+
+# Training parameters
+BATCH_SIZE = 512
+NUM_EPOCHS = 5
+LEARNING_RATE = 5e-4
+WEIGHT_DECAY = 1e-5
+
+# Dataset splits
+TRAIN_SPLIT = 0.7
+VAL_SPLIT = 0.15
+TEST_SPLIT = 0.15
+
 # Paths and URL
-# -----------------------------
 url = "http://hadi.cs.virginia.edu:8000/download/train-dataset"
 zip_path = "train_dataset.zip"
 extract_dir = "dataset"
@@ -65,16 +90,16 @@ else:
 # -----------------------------
 # Training transforms with augmentation
 train_transform = transforms.Compose([
-    transforms.Resize((80, 80)),
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.RandomHorizontalFlip(p=RANDOM_FLIP_PROB),
+    transforms.RandomRotation(RANDOM_ROTATION_DEGREES),
+    transforms.ColorJitter(brightness=COLOR_JITTER_BRIGHTNESS, contrast=COLOR_JITTER_CONTRAST),
     transforms.ToTensor()
 ])
 
 # Validation/test transforms without augmentation
 eval_transform = transforms.Compose([
-    transforms.Resize((80, 80)),
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.ToTensor()
 ])
 
@@ -137,9 +162,9 @@ eval_dataset_full = SkinDataset(root_dir="dataset/train_dataset", transform=eval
 dataset_size = len(train_dataset_full)
 indices = torch.randperm(dataset_size)  # shuffle indices
 
-train_size = int(0.7 * dataset_size)   # 70% training
-val_size = int(0.15 * dataset_size)    # 15% validation
-test_size = dataset_size - train_size - val_size  # 15% test
+train_size = int(TRAIN_SPLIT * dataset_size)
+val_size = int(VAL_SPLIT * dataset_size)
+test_size = dataset_size - train_size - val_size
 
 train_indices = indices[:train_size]
 val_indices = indices[train_size:train_size + val_size]
@@ -151,9 +176,9 @@ val_dataset = Subset(eval_dataset_full, val_indices)
 test_dataset = Subset(eval_dataset_full, test_indices)
 
 # Create DataLoaders
-dataloader_train = DataLoader(train_dataset, batch_size=512, shuffle=True)
-dataloader_val = DataLoader(val_dataset, batch_size=512, shuffle=False)
-dataloader_test = DataLoader(test_dataset, batch_size=512, shuffle=False)
+dataloader_train = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+dataloader_val = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+dataloader_test = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 print(f"train_dataset size: {len(train_dataset)}")
 print(f"val_dataset size: {len(val_dataset)}")
@@ -207,31 +232,25 @@ print(f"Detected {num_classes} classes")
 class CNNModel(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        # First convolutional layer: 3 input channels (RGB) -> 8 output channels
-        # Kernel size 3x3, padding=1 keeps image size the same (120x120)
-        self.conv1 = nn.Conv2d(3, 8, kernel_size=3, padding=1)
-        
-        # Second layer; 8 input channels, 16 output channels
-        self.conv2 = nn.Conv2d(8, 16, 3, padding=1)
+        # First convolutional layer: 3 input channels (RGB) -> CONV1_CHANNELS output channels
+        self.conv1 = nn.Conv2d(3, CONV1_CHANNELS, kernel_size=3, padding=1)
+
+        # Second layer
+        self.conv2 = nn.Conv2d(CONV1_CHANNELS, CONV2_CHANNELS, 3, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(16 * 30 * 30, 64)  # 120/2/2 = 30
-        # Output layer: 128 neurons (number of classes)
-        self.fc2 = nn.Linear(64, num_classes)
-        self.dropout = nn.Dropout(0.5)
+
+        # Calculate flattened size: IMAGE_SIZE / 2 / 2 (two pooling layers)
+        flattened_size = CONV2_CHANNELS * (IMAGE_SIZE // 4) * (IMAGE_SIZE // 4)
+        self.fc1 = nn.Linear(flattened_size, FC1_SIZE)
+        self.fc2 = nn.Linear(FC1_SIZE, num_classes)
+        self.dropout = nn.Dropout(DROPOUT_RATE)
 
     def forward(self, x):
-          x = self.pool(torch.relu(self.conv1(x)))  # 120->60
-          x = self.pool(torch.relu(self.conv2(x)))  # 60->30
-          
-          # Flatten image
-          # Reshape batch size
+          x = self.pool(torch.relu(self.conv1(x)))
+          x = self.pool(torch.relu(self.conv2(x)))
           x = x.view(x.size(0), -1)  # flatten
           x = torch.relu(self.fc1(x))
-          
-          # Dropout during training
           x = self.dropout(x)
-          
-          # Output is batch size x num_classes
           return self.fc2(x)
 
 model = CNNModel(num_classes).to(device)
@@ -239,9 +258,9 @@ model = CNNModel(num_classes).to(device)
 # Loss and Optimizer
 # -----------------------------
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=5e-4, weight_decay=1e-5)
+optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
 
-num_epochs = 5
+num_epochs = NUM_EPOCHS
 
 for epoch in range(num_epochs):
     # -----------------------------
