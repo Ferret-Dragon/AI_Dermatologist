@@ -57,52 +57,37 @@ CELL 7: SUBMISSION FUNCTIONS
 - check_status(): Checks submission status
 - Dependencies: Requires CELL 1
 
+CELL 8: MAIN TRAINING PIPELINE FUNCTION
+-----------------------------------------
+- Define run_training_pipeline() function
+- Encapsulates all 5 steps: Load Data, Load Models, Setup, Train, Save
+- Takes all config parameters as function arguments
+- Includes submit parameter (default=False) for optional auto-submission
+- Returns dict with results (best_f1, model_path, model_size_mb, etc.)
+- Dependencies: Requires CELLS 1-7
+
 ================================================================================
-PART 2: MAIN EXECUTION (Run these in order to execute the pipeline)
+PART 2: MAIN EXECUTION (Run this single cell to execute everything)
 ================================================================================
 
-CELL 8: LOAD DATASET
---------------------
-- Create transforms using create_transforms()
-- Load dataset using SkinDataset class
-- Verify dataset loaded correctly
-- Dependencies: Requires CELLS 1-4
-
-CELL 9: LOAD MODELS
--------------------
-- Load MedSigLIP teacher model using load_teacher_model()
-- Create student model using create_student_shufflenet()
-- Initialize models on device
-- Dependencies: Requires CELLS 1-5
-- NOTE: First run downloads teacher model (~1-2 GB)
-
-CELL 10: SETUP TRAINING
-------------------------
-- Split dataset into train/validation sets using TRAIN_SPLIT
-- Create DataLoaders with BATCH_SIZE and NUM_WORKERS
-- Create DistillationLoss criterion with TEMPERATURE and ALPHA
-- Set up Adam optimizer with LEARNING_RATE
-- Dependencies: Requires CELLS 1-9
-
-CELL 11: TRAIN MODEL
---------------------
-- Train for NUM_EPOCHS epochs
-- Uses train_epoch() and validate() functions
-- Track and display best F1 score
-- Dependencies: Requires CELLS 1-10
-- NOTE: This cell takes the longest to run
-
-CELL 12: SAVE & SUBMIT MODEL
------------------------------
-- Save trained student model to STUDENT_MODEL_PATH
-- Check model size (must be < 25 MB)
-- Display submission instructions
-- Dependencies: Requires CELLS 1-11
-- NOTE: Uncomment submission lines to actually submit
+CELL 9: RUN COMPLETE PIPELINE
+------------------------------
+- Single function call: run_training_pipeline()
+- Passes all configuration values from CELL 2 as arguments
+- Set submit=False (default) to save model without submitting
+- Set submit=True to automatically submit after training
+- Prints final results summary at the end
+- Dependencies: Requires ALL previous cells (1-8)
+- NOTE: This cell executes all 5 steps automatically:
+  [1/5] Load dataset
+  [2/5] Load models (downloads teacher model ~1-2 GB on first run)
+  [3/5] Setup training
+  [4/5] Train model (this takes the longest)
+  [5/5] Save model (and optionally submit if submit=True)
 
 SUMMARY OF EXECUTION FLOW
 ==========================
-PART 1 (Run once):
+PART 1 (Run once - Cells 1-9):
 1. Import libraries and setup device
 2. Load configuration variables
 3. Define SkinDataset and DistillationLoss classes
@@ -110,42 +95,54 @@ PART 1 (Run once):
 5. Define model loading functions
 6. Define training functions
 7. Define submission functions
+8. Define main pipeline function (run_training_pipeline)
 
-PART 2 (Main workflow):
-8. Load and prepare dataset
-9. Load teacher model and create student model
-10. Setup training (data loaders, criterion, optimizer)
-11. Train the student model using knowledge distillation
-12. Save and optionally submit the trained model
+PART 2 (Main execution - Cell 10):
+9. Call run_training_pipeline() with all config parameters
+   - Automatically runs all 5 steps internally
+   - Returns results dictionary
+   - Optionally submits if submit=True
 
 IMPORTANT NOTES
 ===============
-- PART 1 cells (1-7) define everything - run these ONCE at the start
-- PART 2 cells (8-12) execute the workflow - run these in order
+- PART 1 cells (1-9) define everything - run these ONCE at the start
+- PART 2 is just ONE cell (10) - calls the pipeline function
 - Do NOT skip cells, as later cells depend on earlier ones
-- If you modify CELL 2 (configuration), restart kernel and rerun all cells
-- After running PART 1 once, you can rerun PART 2 multiple times
+- If you modify CELL 2 (configuration), you can just rerun CELL 10
+- After running PART 1 once, you can rerun CELL 10 with different parameters
 
 TYPICAL WORKFLOW FOR EXPERIMENTATION
 =====================================
 Initial Setup (run once):
-1. Run PART 1: CELLS 1-7 to define all classes and functions
+1. Run PART 1: CELLS 1-9 to define all classes and functions
 
 First Training Run:
-2. Run PART 2: CELLS 8-12 to execute the complete pipeline
+2. Run CELL 10 to execute the complete pipeline
+3. Review results printed at the end
 
-Experimentation (repeat as needed):
-3. Modify CELL 2 configuration (e.g., BATCH_SIZE, LEARNING_RATE, TEMPERATURE, ALPHA)
-4. Re-run CELLS 9-12 (skip dataset loading if using same data)
-5. Compare results and iterate
+Quick Experimentation (fastest way):
+4. Rerun CELL 10 with modified parameters directly in the function call
+   Example: Change num_epochs=5, temperature=3.0 in the function arguments
+5. Compare results
+
+Full Config Experimentation:
+6. Modify CELL 2 configuration (e.g., BATCH_SIZE, LEARNING_RATE, TEMPERATURE, ALPHA)
+7. Rerun CELL 10 (it will use the updated config values)
+8. Compare results and iterate
+
+Submission:
+9. When ready, set submit=True in CELL 10 or call submit_model() manually
 
 ADVANTAGES OF THIS ORGANIZATION
 ================================
 - Clear separation between definitions and execution
 - All functions defined in one place for easy reference
-- Can rerun execution cells without redefining functions
-- Easier to understand the overall workflow
-- Better software engineering practice
+- Single function encapsulates entire workflow - very easy to use
+- Can modify parameters without changing multiple cells
+- Easy to experiment: just rerun one cell with different parameters
+- Can call the pipeline function multiple times with different configs
+- Clean code structure following software engineering best practices
+- submit parameter makes submission optional and explicit (default: False)
 
 TROUBLESHOOTING
 ===============
