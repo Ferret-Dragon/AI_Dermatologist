@@ -1,0 +1,18 @@
+# Dataset files
+train_dataset/
+*.zip
+
+# Model files
+*.pth
+*.pt
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
