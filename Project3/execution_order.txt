@@ -1,0 +1,95 @@
+EXECUTION ORDER FOR HOMEWORK 3: KNOWLEDGE DISTILLATION
+========================================================
+
+This document outlines the order in which to run the notebook cells for the
+AI Dermatologist knowledge distillation project.
+
+CELL 1: IMPORTS & DEVICE SETUP
+-------------------------------
+- Import all necessary libraries (PyTorch, transformers, sklearn, etc.)
+- Detect and set up device (CPU/CUDA)
+- MUST RUN FIRST
+
+CELL 2: CONFIGURATION
+---------------------
+- Define all tunable parameters in one place
+- Dataset paths, image size, normalization values
+- Training hyperparameters (batch size, epochs, learning rate)
+- Distillation parameters (temperature, alpha)
+- Model paths and server configuration
+- MUST RUN SECOND (before any other cells that use these variables)
+
+CELL 3: DATASET LOADING
+------------------------
+- Define SkinDataset class
+- Create train and validation transforms using config variables
+- Load dataset from DATASET_PATH
+- Verify dataset loaded correctly (prints number of images and classes)
+- Dependencies: Requires CELL 1 (imports) and CELL 2 (config)
+
+CELL 4: LOAD TEACHER & STUDENT MODELS
+--------------------------------------
+- Load MedSigLIP teacher model from HuggingFace
+- Freeze teacher model parameters (inference only)
+- Create ShuffleNetV2 student model
+- Initialize models on device
+- Dependencies: Requires CELL 1, CELL 2
+- NOTE: This cell downloads the teacher model (~1-2 GB) on first run
+
+CELL 5: DEFINE DISTILLATION LOSS
+---------------------------------
+- Implement DistillationLoss class (TODO: students must complete)
+- Create instance with TEMPERATURE and ALPHA from config
+- Dependencies: Requires CELL 1, CELL 2
+
+CELL 6: TRAINING LOOP
+---------------------
+- Split dataset into train/validation sets
+- Create DataLoaders with BATCH_SIZE and NUM_WORKERS from config
+- Set up optimizer with LEARNING_RATE from config
+- Define training and validation functions
+- Train for NUM_EPOCHS epochs
+- Track best F1 score
+- Dependencies: Requires ALL previous cells (1-5)
+- NOTE: This is the main training cell and will take the longest to run
+
+CELL 7: SAVE & SUBMIT MODEL
+----------------------------
+- Save trained student model to STUDENT_MODEL_PATH
+- Check model size (must be < 25 MB)
+- Provide submission functions (submit_model, check_status)
+- Dependencies: Requires CELL 6 (trained model)
+- NOTE: Uncomment submission lines to actually submit
+
+SUMMARY OF EXECUTION FLOW
+==========================
+1. Import libraries and setup device
+2. Load configuration variables
+3. Load and prepare dataset
+4. Load teacher model and create student model
+5. Define distillation loss function
+6. Train the student model using knowledge distillation
+7. Save and optionally submit the trained model
+
+IMPORTANT NOTES
+===============
+- Cells MUST be run in order (1 → 2 → 3 → 4 → 5 → 6 → 7)
+- Do NOT skip cells, as later cells depend on earlier ones
+- If you modify CELL 2 (configuration), you may need to restart and rerun all cells
+- CELL 6 (training) can be run multiple times with different configs to experiment
+- After training, you can save different versions by changing STUDENT_MODEL_PATH in CELL 2
+
+TYPICAL WORKFLOW FOR EXPERIMENTATION
+=====================================
+1. Run cells 1-5 once to set up environment and models
+2. Modify CELL 2 configuration (e.g., change BATCH_SIZE, LEARNING_RATE, TEMPERATURE)
+3. Re-run CELL 6 to train with new parameters
+4. Run CELL 7 to save the model
+5. Repeat steps 2-4 to find optimal hyperparameters
+
+TROUBLESHOOTING
+===============
+- If you get "NameError: name 'X' is not defined", you skipped a cell
+- If training is too slow, reduce BATCH_SIZE or NUM_WORKERS in CELL 2
+- If model is > 25 MB, try a smaller student model architecture
+- If you run out of memory, reduce BATCH_SIZE or use CPU instead of CUDA
