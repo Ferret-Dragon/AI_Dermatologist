@@ -1,0 +1,22 @@
+# Dataset files
+train_dataset.zip
+dataset/
+
+# Model files
+*.pth
+
+# Test files
+quick_test.py
+jupyter_training.py
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.venv/
